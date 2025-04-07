@@ -29,14 +29,15 @@ function App() {
   const retryEndpoint = async (failedData) => {
     try {
       const res = await axios.post("http://localhost:5000/api/oas/retry", {
+        url: failedData.request.url,
         method: failedData.method,
-        endpoint: failedData.endpoint,
+        data: failedData.request.data || null,
       });
-
+  
       setResult((prev) => {
         const updated = prev.results.map((r) =>
           r.endpoint === failedData.endpoint && r.method === failedData.method
-            ? res.data
+            ? { ...r, ...res.data, success: true }
             : r
         );
         return { ...prev, results: updated };
@@ -45,6 +46,7 @@ function App() {
       console.error("Retry failed:", err);
     }
   };
+  
 
   const exportResults = (type) => {
     if (!result?.results?.length) return;

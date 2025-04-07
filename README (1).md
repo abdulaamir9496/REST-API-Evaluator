@@ -95,6 +95,18 @@ The backend server will run on `http://localhost:5000/api/oas/test`
    - Set `VITE_BACKEND_URL` in environment settings
    - Click **Deploy**
 
+## 🔐 Authenticated Endpoints Support
+
+You can now test authenticated endpoints by passing custom headers (e.g., API keys or bearer tokens) using the UI.
+
+### How it works:
+- Add any number of headers in the "Auth Headers" section before submitting the OAS URL.
+- These headers will be sent with each API request to test your protected endpoints.
+- Supports all types of headers (`Authorization`, `x-api-key`, etc.).
+
+### Optional Default Token (via `.env`)
+You can set default values in `.env`:
+
 ---
 
 ## 🔍 Assumptions Made

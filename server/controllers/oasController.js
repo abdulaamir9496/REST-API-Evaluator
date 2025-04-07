@@ -50,7 +50,7 @@ async function fetchOAS(oasUrl) {
   } catch (error) {
     console.error('Error fetching OAS:', error.message);
     console.error('Error response:', error.response?.data);
-    console.error('Error status:', error.response?.status);
+    console.error('Error status:',  error.response?.status);
     console.error('Error headers:', error.response?.headers);
     throw error;
   }
@@ -84,8 +84,10 @@ function getEndpoints(oas) {
  */
 async function testEndpoints(oas, endpoints) {
   const results = [];
+  const baseUrl = oas.servers?.[0]?.url || 'https://petstore.swagger.io/v2';
+  
   for (const ep of endpoints) {
-    const fullUrl = `${oas.servers?.[0]?.url}${ep.path}`;
+    const fullUrl = `${baseUrl}${ep.path}`;
     console.log('Testing endpoint:', fullUrl, ep.method);
     const reqData = ep.method === 'POST' ? generateDummyData(ep.path) : undefined;
 
