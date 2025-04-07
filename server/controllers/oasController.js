@@ -1,62 +1,131 @@
-const axios = require("axios");
+const axios = require('axios');
+const Log = require('../models/logModel');
+const { generateDummyData } = require('../utils/dummyDataGenerator');
 
-const testOAS = async (req, res) => {
-  const { oasUrl } = req.body;
-
+async function testOAS(req, res) {
   try {
-    const response = await axios.get(oasUrl);
-    const oas = response.data;
-
-    const endpoints = [];
-
-    for (const [path, methods] of Object.entries(oas.paths)) {
-      for (const [method, details] of Object.entries(methods)) {
-        if (["get", "post"].includes(method.toLowerCase())) {
-          endpoints.push({
-            path,
-            method: method.toUpperCase(),
-          });
-        }
-      }
+    const { oasUrl } = req.body;
+    if (!oasUrl) {
+      return res.status(400).json({ message: 'oasUrl is required' });
     }
 
-    const results = await Promise.all(endpoints.map(async (ep) => {
+    console.log('Fetching OAS from:', oasUrl);
+    let oasResponse;
+    try {
+      oasResponse = await axios.get(oasUrl);
+      console.log('OAS response status:', oasResponse.status);
+      console.log('OAS response headers:', oasResponse.headers);
+    } catch (error) {
+      console.error('Error fetching OAS:', error.message);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      console.error('Error headers:', error.response?.headers);
+      throw error;
+    }
+
+    const oas = oasResponse.data;
+    console.log('OAS servers:', oas.servers);
+    
+    const endpoints = [];
+    for (const path in oas.paths) {
+      const methods = oas.paths[path];
+      for (const method in methods) {
+        endpoints.push({ method: method.toUpperCase(), path });
+      }
+    }
+    console.log('Found endpoints:', endpoints.length);
+
+    const results = [];
+    for (const ep of endpoints) {
+      const fullUrl = `${oas.servers?.[0]?.url}${ep.path}`;
+      console.log('Testing endpoint:', fullUrl, ep.method);
+      const reqData = ep.method === 'POST' ? generateDummyData(ep.path) : undefined;
+
       try {
-        const url = `${oas.host}${oas.basePath}${ep.path}`;
-        const fullUrl = `https://${url}`;
-        const res = await axios({
+        const response = await axios({
+          method: ep.method,
           url: fullUrl,
-          method: ep.method.toLowerCase(),
-          data: ep.method === "POST" ? { dummy: "test" } : undefined,
+          data: reqData,
         });
 
-        return {
+        // Create log object without saving to database
+        const log = {
           endpoint: ep.path,
           method: ep.method,
-          status: res.status,
-          success: true,
+          request: {
+            url: fullUrl,
+            method: ep.method,
+            data: reqData || null,
+          },
+          response: response.data,
+          statusCode: response.status,
+          timestamp: new Date(),
         };
-      } catch (error) {
-        return {
+
+        results.push({ ...log, success: true });
+      } catch (err) {
+        console.error('Error testing endpoint:', fullUrl, err.message);
+        results.push({
           endpoint: ep.path,
           method: ep.method,
-          status: error.response?.status || 500,
+          error: err.message,
           success: false,
-        };
+          request: {
+            url: fullUrl,
+            method: ep.method,
+            data: reqData || null,
+          },
+        });
       }
-    }));
+    }
 
     const summary = {
       total: results.length,
       success: results.filter(r => r.success).length,
+      failed: results.filter(r => !r.success).length,
     };
 
-    res.json({ summary, results });
-
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ error: "Failed to fetch or parse OAS." });
+    console.log('Test summary:', summary);
+    res.status(200).json({ summary, results });
+  } catch (error) {
+    console.error('Error processing OAS:', error.message);
+    console.error('Error stack:', error.stack);
+    res.status(400).json({ 
+      error: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
   }
-};
+}
 
-module.exports = { testOAS }; 
+// New Retry Endpoint
+async function retryEndpoint(req, res) {
+  try {
+    const { url, method, data } = req.body;
+
+    const response = await axios({
+      method,
+      url,
+      data: method === 'POST' ? data : undefined,
+    });
+
+    res.json({
+      success: true,
+      status: response.status,
+      response: response.data,
+    });
+  } catch (error) {
+    res.status(error.response?.status || 500).json({
+      success: false,
+      error: error.message,
+      status: error.response?.status,
+      response: error.response?.data,
+    });
+  }
+}
+
+// Export both functions
+module.exports = {
+  testOAS,
+  retryEndpoint,
+};
