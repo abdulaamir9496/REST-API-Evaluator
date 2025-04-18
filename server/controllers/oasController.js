@@ -97,6 +97,61 @@ function extractPathParameters(path) {
   return pathParams;
 }
 
+/**
+ * Generate a summary of the API testing results
+ * @param {Array} results - The results from testing endpoints
+ * @returns {Object} Summary statistics of the testing
+ */
+function getSummary(results) {
+  if (!results || !Array.isArray(results)) {
+    return {
+      total: 0,
+      success: 0,
+      failed: 0,
+      successRate: 0,
+      statusCodes: {},
+      commonErrors: []
+    };
+  }
+
+  // Count successes and failures
+  const success = results.filter(r => r.success).length;
+  const failed = results.length - success;
+
+  // Calculate success rate as percentage
+  const successRate = results.length > 0 ? 
+    Math.round((success / results.length) * 100) : 0;
+
+  // Count occurrences of each status code
+  const statusCodes = {};
+  results.forEach(result => {
+    const statusCode = result.statusCode || 'unknown';
+    statusCodes[statusCode] = (statusCodes[statusCode] || 0) + 1;
+  });
+
+  // Find most common error messages
+  const errorCounts = {};
+  results.filter(r => !r.success).forEach(result => {
+    const errorMsg = result.error || 'Unknown error';
+    errorCounts[errorMsg] = (errorCounts[errorMsg] || 0) + 1;
+  });
+
+  // Sort errors by frequency and get top 5
+  const commonErrors = Object.entries(errorCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([error, count]) => ({ error, count }));
+
+  return {
+    total: results.length,
+    success,
+    failed,
+    successRate,
+    statusCodes,
+    commonErrors
+  };
+}
+
 async function testEndpoints(oas, endpoints, authConfig) {
   const results = [];
   // Get the correct base URL, or allow for override
@@ -120,15 +175,7 @@ async function testEndpoints(oas, endpoints, authConfig) {
                       headers: {}
                     };
                     
-    try {
-      // Configure request with authentication if needed
-      // const config = {
-      //   method: ep.method,
-      //   url: fullUrl,
-      //   data: reqData,
-      //   headers: {}
-      // };
-      
+    try {      
       // Use the auth helper to configure authentication
       configureAuth(config, ep.security, authConfig);
 
@@ -366,5 +413,6 @@ module.exports = {
   updateAuthConfig,
   listAuthConfigs,
   getAuthConfig,
-  deleteAuthConfig
+  deleteAuthConfig,
+  getSummary
 };
