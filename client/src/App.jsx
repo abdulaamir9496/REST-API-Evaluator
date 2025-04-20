@@ -33,7 +33,7 @@ function App() {
         method: failedData.method,
         data: failedData.request.data || null,
       });
-  
+
       setResult((prev) => {
         const updated = prev.results.map((r) =>
           r.endpoint === failedData.endpoint && r.method === failedData.method
@@ -46,7 +46,6 @@ function App() {
       console.error("Retry failed:", err);
     }
   };
-  
 
   const exportResults = (type) => {
     if (!result?.results?.length) return;
