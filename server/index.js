@@ -1,11 +1,13 @@
-const app = require('./app');  //Creatin app
-const connectDB = require('./config/db');   //Connecting to DataBase
+const dotenv = require("dotenv");
+dotenv.config();
 
-const PORT = process.env.PORT || 5000;
+const app = require("./app");
+const connectDB = require("./config/db");
+const { PORT } = require("./config/constants");
 
-// Connect Mongo and start server
+// Connect to DB and start server
 connectDB();
 
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`🚀 Server running on port ${PORT}`);
 });

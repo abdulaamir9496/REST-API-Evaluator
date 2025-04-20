@@ -1,0 +1,86 @@
+**SwaggerDrill Product Demo -**
+---
+## 🔄 Problem Statement
+> API testing is often manual, repetitive, and requires Postman collections or developer intervention. We needed a tool that automates testing directly from OpenAPI/Swagger specs with dummy data and flexible auth handling.
+---
+## 🔧 Key Enhancements
+### 🔄 Spec-Agnostic Parsing
+- Supports both **OpenAPI 3.0+** and **Swagger 2.0**.
+- Automatically detects spec version and extracts:
+  - Base URL
+  - Endpoints (method + path)
+  - Summary + description
+  - Auth requirements
+
+**Demo Input:**
+```
+https://petstore.swagger.io/v2/swagger.json
+```
+**Expected Result:** Parsed list of endpoints shown with methods and metadata.
+---
+### 🧠 Intelligent Dummy Data Generator
+- Analyzes request bodies, types, and constraints.
+- Supports:
+  - `string`, `number`, `boolean`
+  - `format`: email, uuid, date, etc.
+  - Arrays and nested objects
+  - Min/max, patterns, enums
+
+**Demo Action:** Test a `POST` endpoint.
+**Expected Result:**
+```json
+{
+  "email": "test@example.com",
+  "uuid": "b91c3a32-2cf1-11ec-8d3d-0242ac130003",
+  "date": "2025-04-20"
+}
+```
+### 🔐 Comprehensive Authentication Support
+- Reads `security` sections from the spec.
+- Supports:
+  - Bearer Token
+  - API Key
+  - Basic Auth
+- Pulls credentials from `.env` file:
+```
+DEFAULT_AUTH_KEY=Authorization
+DEFAULT_AUTH_VALUE=Bearer YOUR_TOKEN_HERE
+```
+**Demo Action:** Test an endpoint requiring `Authorization` header.
+**Expected Result:** Auth headers auto-applied during request.
+---
+### 🔧 Robust Error Handling & MongoDB Logging
+- Clear 400/401 error messages if inputs are invalid.
+- Logs each test run to MongoDB:
+```json
+{
+  "url": "https://petstore.swagger.io/v2/swagger.json",
+  "testedAt": "2025-04-20T10:30:00Z",
+  "results": [ ... ]
+}
+```
+**Demo:** Show MongoDB Compass with logs.
+
+## 🌐 Vision Forward
+> SwaggerDrill is now a plug-and-play API testing engine from spec URL to validation. Future plans include:
+- Postman collection export
+- CI/CD integrations
+- AI-assisted test coverage generation
+- OAuth2 token flows with refresh
+
+**Ready to demo. Just paste the Swagger URL, parse, test, and show logs!**
+***************************************************************************
+
+API | URL
+🐶 Swagger Petstore (OpenAPI 3) | https://petstore3.swagger.io/api/v3/openapi.json
+💳 Stripe API | https://raw.githubusercontent.com/stripe/openapi/master/openapi/spec3.json
+🧾 Redoc Petstore (YAML converted) | https://redocly.github.io/redoc/openapi.yaml
+🌦️ Weather API (Mock example) | https://raw.githubusercontent.com/APIs-guru/openapi-directory/main/APIs/open-meteo.com/1.0.0/openapi.yaml
+💰 Coinbase Pro | https://raw.githubusercontent.com/coinbase/coinbase-pro-node/master/openapi.json
+
+API | URL
+🐶 Swagger Petstore (Swagger 2.0) | https://petstore.swagger.io/v2/swagger.json
+💬 Mailchimp API (Swagger 2) | https://api.apis.guru/v2/specs/mailchimp.com/3.0.40/swagger.json
+📦 Shopify Admin | https://api.apis.guru/v2/specs/shopify.com/admin/2021-01/swagger.json
+🚀 NASA APIs | https://api.apis.guru/v2/specs/nasa.gov/1.0.0/swagger.json
+

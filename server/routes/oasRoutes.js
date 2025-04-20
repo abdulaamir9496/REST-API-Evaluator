@@ -1,4 +1,3 @@
-// routes/oasRoutes.js
 const express = require('express');
 const router = express.Router();
 const { testOAS, retryEndpoint, updateAuthConfig } = require('../controllers/oasController');
