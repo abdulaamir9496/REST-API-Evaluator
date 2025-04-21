@@ -6,15 +6,20 @@
  * @returns {object} - Generated dummy data
  */
 function generateDummyData(endpointPath, requestBody, openApiSpec) {
+  console.log("Generating dummy data for:", endpointPath);
+  console.log("Request Body Schema:", JSON.stringify(requestBody, null, 2));
+
   if (requestBody && requestBody.content) {
     const contentType = Object.keys(requestBody.content)[0];
     const schema = requestBody.content[contentType]?.schema;
     if (schema) {
+      console.log("Schema found:", JSON.stringify(schema, null, 2));
       return generateFromSchema(schema, openApiSpec);
     }
   }
 
   if (requestBody?.schema) {
+    console.log("Schema found in requestBody:", JSON.stringify(requestBody.schema, null, 2));
     return generateFromSchema(requestBody.schema, openApiSpec);
   }
 
@@ -42,25 +47,31 @@ function resolveRef(ref, spec) {
 function generateFromSchema(schema, openApiSpec) {
   if (!schema) return {};
 
-  if (schema.$ref) {
-    const resolved = resolveRef(schema.$ref, openApiSpec);
-    return resolved ? generateFromSchema(resolved, openApiSpec) : {};
-  }
+  try {
+    if (schema.$ref) {
+      const resolved = resolveRef(schema.$ref, openApiSpec);
+      return resolved ? generateFromSchema(resolved, openApiSpec) : {};
+    }
 
-  switch (schema.type) {
-    case 'object':
-      return generateObjectData(schema, openApiSpec);
-    case 'array':
-      return generateArrayData(schema, openApiSpec);
-    case 'string':
-      return generateStringData(schema);
-    case 'integer':
-    case 'number':
-      return generateNumberData(schema);
-    case 'boolean':
-      return Math.random() > 0.5;
-    default:
-      return {};
+    switch (schema.type) {
+      case 'object':
+        return generateObjectData(schema, openApiSpec);
+      case 'array':
+        return generateArrayData(schema, openApiSpec);
+      case 'string':
+        return generateStringData(schema);
+      case 'integer':
+      case 'number':
+        return generateNumberData(schema);
+      case 'boolean':
+        return Math.random() > 0.5;
+      default:
+        console.warn("Unknown schema type:", schema.type);
+        return {};
+    }
+  } catch (error) {
+    console.error("Error generating data from schema:", error);
+    throw new Error("Failed to generate data from schema");
   }
 }
 
@@ -140,43 +151,8 @@ function generateBasicDummyData(endpointPath) {
 
   if (path.includes('user') || path.includes('account') || path.includes('profile')) {
     dummyData.id = Math.floor(Math.random() * 1000);
-    dummyData.username = `testuser${Math.floor(Math.random() * 100)}`;
-    dummyData.firstName = "Test";
-    dummyData.lastName = "User";
-    dummyData.email = `test${Math.floor(Math.random() * 100)}@example.com`;
-    dummyData.password = "Password123!";
-    dummyData.phone = `+1${Math.floor(1000000000 + Math.random() * 9000000000)}`;
-    dummyData.status = "active";
-  } else if (path.includes('pet') || path.includes('animal')) {
-    dummyData.id = Math.floor(Math.random() * 1000);
-    dummyData.name = `Pet${Math.floor(Math.random() * 100)}`;
-    dummyData.status = ['available', 'pending', 'sold'][Math.floor(Math.random() * 3)];
-    dummyData.category = {
-      id: Math.floor(Math.random() * 10),
-      name: ['dog', 'cat', 'bird', 'fish'][Math.floor(Math.random() * 4)]
-    };
-    dummyData.tags = [{ id: 1, name: 'tag1' }, { id: 2, name: 'tag2' }];
-    dummyData.photoUrls = ['https://example.com/pet.jpg'];
-  } else if (path.includes('order') || path.includes('store')) {
-    dummyData.id = Math.floor(Math.random() * 1000);
-    dummyData.petId = Math.floor(Math.random() * 100);
-    dummyData.quantity = Math.floor(Math.random() * 10) + 1;
-    dummyData.shipDate = new Date().toISOString();
-    dummyData.status = ['placed', 'approved', 'delivered'][Math.floor(Math.random() * 3)];
-    dummyData.complete = Math.random() > 0.5;
-  } else if (path.includes('product') || path.includes('item')) {
-    dummyData.id = Math.floor(Math.random() * 1000);
-    dummyData.name = `Product${Math.floor(Math.random() * 100)}`;
-    dummyData.price = Number((Math.random() * 100).toFixed(2));
-    dummyData.category = ['electronics', 'clothing', 'food'][Math.floor(Math.random() * 3)];
-    dummyData.stock = Math.floor(Math.random() * 100);
-    dummyData.description = "This is a sample product description";
-    dummyData.imageUrl = "https://example.com/product.jpg";
-  } else {
-    dummyData.id = Math.floor(Math.random() * 1000);
-    dummyData.name = `Sample${Math.floor(Math.random() * 100)}`;
-    dummyData.description = `Sample data for ${endpointPath}`;
-    dummyData.createdAt = new Date().toISOString();
+    dummyData.username = `user${dummyData.id}`;
+    dummyData.email = `user${dummyData.id}@example.com`;
   }
 
   return dummyData;

@@ -16,10 +16,7 @@ const { MONGO_URI } = require("./constants");
 // The connection URI is stored in the MONGO_URI constant.
 const connectDB = async () => {
     try {
-        await mongoose.connect(MONGO_URI, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
-        });
+        await mongoose.connect(MONGO_URI); // Remove options
         console.log("✅ MongoDB connected");
     } catch (error) {
         console.error("❌ MongoDB connection failed:", error.message);
