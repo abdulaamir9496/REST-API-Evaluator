@@ -26,6 +26,6 @@ app.use(express.json());   // Parse JSON bodies
 
 // Routes
 const oasRoutes = require("./routes/oasRoutes");
-app.use("/api/oas", oasRoutes);
+app.use("/api/oas", oasRoutes); // This already handles the /test-dummy route
 
 module.exports = app;

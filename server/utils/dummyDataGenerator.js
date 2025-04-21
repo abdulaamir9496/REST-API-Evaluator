@@ -1,50 +1,57 @@
-// utils/dummyDataGenerator.js
-
 /**
  * Generates dummy data based on OpenAPI schema definitions
  * @param {string} endpointPath - The API endpoint path
  * @param {object} requestBody - The request body schema from the OpenAPI spec
+ * @param {object} openApiSpec - The full OpenAPI spec (for resolving $ref)
  * @returns {object} - Generated dummy data
  */
-function generateDummyData(endpointPath, requestBody) {
-  // If we have schema info, use it for more accurate data generation
+function generateDummyData(endpointPath, requestBody, openApiSpec) {
   if (requestBody && requestBody.content) {
     const contentType = Object.keys(requestBody.content)[0];
-    if (contentType && requestBody.content[contentType].schema) {
-      return generateFromSchema(requestBody.content[contentType].schema);
+    const schema = requestBody.content[contentType]?.schema;
+    if (schema) {
+      return generateFromSchema(schema, openApiSpec);
     }
   }
-  
-  // Handle OpenAPI 2.0 request bodies
-  if (requestBody && requestBody.schema) {
-    return generateFromSchema(requestBody.schema);
+
+  if (requestBody?.schema) {
+    return generateFromSchema(requestBody.schema, openApiSpec);
   }
 
-  // Fallback to basic patterns based on endpoint path
   return generateBasicDummyData(endpointPath);
+}
+
+/**
+ * Resolves a $ref string to the actual schema object
+ * @param {string} ref - The $ref string
+ * @param {object} spec - The full OpenAPI spec
+ * @returns {object|null} - Resolved schema
+ */
+function resolveRef(ref, spec) {
+  if (!ref.startsWith('#/')) return null;
+  const parts = ref.slice(2).split('/');
+  return parts.reduce((acc, part) => acc?.[part], spec);
 }
 
 /**
  * Generates dummy data based on a schema object
  * @param {object} schema - The OpenAPI schema object
+ * @param {object} openApiSpec - The full OpenAPI spec
  * @returns {any} - Generated data matching the schema
  */
-function generateFromSchema(schema) {
+function generateFromSchema(schema, openApiSpec) {
   if (!schema) return {};
 
-  // Handle reference schemas
   if (schema.$ref) {
-    // For now, return empty object for refs
-    // In a complete implementation, you would resolve the reference
-    return {};
+    const resolved = resolveRef(schema.$ref, openApiSpec);
+    return resolved ? generateFromSchema(resolved, openApiSpec) : {};
   }
 
-  // Handle different types
   switch (schema.type) {
     case 'object':
-      return generateObjectData(schema);
+      return generateObjectData(schema, openApiSpec);
     case 'array':
-      return generateArrayData(schema);
+      return generateArrayData(schema, openApiSpec);
     case 'string':
       return generateStringData(schema);
     case 'integer':
@@ -57,63 +64,38 @@ function generateFromSchema(schema) {
   }
 }
 
-/**
- * Generates a dummy object based on schema properties
- * @param {object} schema - The schema with properties
- * @returns {object} - Generated dummy object
- */
-function generateObjectData(schema) {
+function generateObjectData(schema, openApiSpec) {
   const result = {};
-  
-  // If no properties defined, return empty object
   if (!schema.properties) return result;
-  
-  // Generate a value for each property
+
   for (const [key, propSchema] of Object.entries(schema.properties)) {
-    // Check if property is required
-    const required = schema.required && schema.required.includes(key);
-    
-    // Generate value if required or randomly (70% chance)
+    const required = schema.required?.includes(key);
     if (required || Math.random() < 0.7) {
-      result[key] = generateFromSchema(propSchema);
+      result[key] = generateFromSchema(propSchema, openApiSpec);
     }
   }
-  
+
   return result;
 }
 
-/**
- * Generates a dummy array based on schema
- * @param {object} schema - The array schema
- * @returns {Array} - Generated dummy array
- */
-function generateArrayData(schema) {
-  // Create an array with 1-3 items
+function generateArrayData(schema, openApiSpec) {
   const count = Math.floor(Math.random() * 3) + 1;
   const result = [];
-  
+
   if (schema.items) {
     for (let i = 0; i < count; i++) {
-      result.push(generateFromSchema(schema.items));
+      result.push(generateFromSchema(schema.items, openApiSpec));
     }
   }
-  
+
   return result;
 }
 
-/**
- * Generates a dummy string based on format
- * @param {object} schema - The string schema with format
- * @returns {string} - Generated string
- */
 function generateStringData(schema) {
-  if (schema.enum && schema.enum.length > 0) {
-    // Choose a random enum value
-    const randomIndex = Math.floor(Math.random() * schema.enum.length);
-    return schema.enum[randomIndex];
+  if (schema.enum?.length) {
+    return schema.enum[Math.floor(Math.random() * schema.enum.length)];
   }
-  
-  // Handle common string formats
+
   switch (schema.format) {
     case 'date':
       return new Date().toISOString().split('T')[0];
@@ -122,7 +104,7 @@ function generateStringData(schema) {
     case 'email':
       return `test-${Math.floor(Math.random() * 1000)}@example.com`;
     case 'uuid':
-      return `xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx`.replace(/[xy]/g, c => {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
         const r = Math.random() * 16 | 0;
         const v = c === 'x' ? r : (r & 0x3 | 0x8);
         return v.toString(16);
@@ -133,9 +115,8 @@ function generateStringData(schema) {
     case 'password':
       return 'securePassword123!';
     case 'binary':
-      return 'dGVzdCBiaW5hcnkgZGF0YQ=='; // Base64 "test binary data"
+      return 'dGVzdCBiaW5hcnkgZGF0YQ==';
     default:
-      // Generate a basic string with specified length or default
       const minLength = schema.minLength || 5;
       const maxLength = schema.maxLength || 10;
       const length = Math.floor(Math.random() * (maxLength - minLength + 1)) + minLength;
@@ -143,34 +124,20 @@ function generateStringData(schema) {
   }
 }
 
-/**
- * Generates a dummy number based on schema
- * @param {object} schema - The number schema
- * @returns {number} - Generated number
- */
 function generateNumberData(schema) {
   const isInteger = schema.type === 'integer';
-  let min = schema.minimum !== undefined ? schema.minimum : 0;
-  let max = schema.maximum !== undefined ? schema.maximum : 100;
-  
-  // Ensure min < max
+  let min = schema.minimum ?? 0;
+  let max = schema.maximum ?? 100;
   if (min >= max) max = min + 10;
-  
-  // Generate number
+
   const value = Math.random() * (max - min) + min;
   return isInteger ? Math.floor(value) : Number(value.toFixed(2));
 }
 
-/**
- * Fallback function to generate basic dummy data based on endpoint path
- * @param {string} endpointPath - The API endpoint path
- * @returns {object} - Generated dummy data
- */
 function generateBasicDummyData(endpointPath) {
   const dummyData = {};
   const path = endpointPath.toLowerCase();
 
-  // User-related endpoints
   if (path.includes('user') || path.includes('account') || path.includes('profile')) {
     dummyData.id = Math.floor(Math.random() * 1000);
     dummyData.username = `testuser${Math.floor(Math.random() * 100)}`;
@@ -180,9 +147,7 @@ function generateBasicDummyData(endpointPath) {
     dummyData.password = "Password123!";
     dummyData.phone = `+1${Math.floor(1000000000 + Math.random() * 9000000000)}`;
     dummyData.status = "active";
-  } 
-  // Pet or animal related endpoints
-  else if (path.includes('pet') || path.includes('animal')) {
+  } else if (path.includes('pet') || path.includes('animal')) {
     dummyData.id = Math.floor(Math.random() * 1000);
     dummyData.name = `Pet${Math.floor(Math.random() * 100)}`;
     dummyData.status = ['available', 'pending', 'sold'][Math.floor(Math.random() * 3)];
@@ -190,23 +155,16 @@ function generateBasicDummyData(endpointPath) {
       id: Math.floor(Math.random() * 10),
       name: ['dog', 'cat', 'bird', 'fish'][Math.floor(Math.random() * 4)]
     };
-    dummyData.tags = [
-      { id: 1, name: 'tag1' },
-      { id: 2, name: 'tag2' }
-    ];
+    dummyData.tags = [{ id: 1, name: 'tag1' }, { id: 2, name: 'tag2' }];
     dummyData.photoUrls = ['https://example.com/pet.jpg'];
-  }
-  // Order or store related endpoints
-  else if (path.includes('order') || path.includes('store')) {
+  } else if (path.includes('order') || path.includes('store')) {
     dummyData.id = Math.floor(Math.random() * 1000);
     dummyData.petId = Math.floor(Math.random() * 100);
     dummyData.quantity = Math.floor(Math.random() * 10) + 1;
     dummyData.shipDate = new Date().toISOString();
     dummyData.status = ['placed', 'approved', 'delivered'][Math.floor(Math.random() * 3)];
     dummyData.complete = Math.random() > 0.5;
-  }
-  // Product related endpoints
-  else if (path.includes('product') || path.includes('item')) {
+  } else if (path.includes('product') || path.includes('item')) {
     dummyData.id = Math.floor(Math.random() * 1000);
     dummyData.name = `Product${Math.floor(Math.random() * 100)}`;
     dummyData.price = Number((Math.random() * 100).toFixed(2));
@@ -214,9 +172,7 @@ function generateBasicDummyData(endpointPath) {
     dummyData.stock = Math.floor(Math.random() * 100);
     dummyData.description = "This is a sample product description";
     dummyData.imageUrl = "https://example.com/product.jpg";
-  }
-  // Default for other endpoints
-  else {
+  } else {
     dummyData.id = Math.floor(Math.random() * 1000);
     dummyData.name = `Sample${Math.floor(Math.random() * 100)}`;
     dummyData.description = `Sample data for ${endpointPath}`;

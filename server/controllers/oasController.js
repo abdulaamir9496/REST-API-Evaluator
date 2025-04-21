@@ -220,14 +220,14 @@ function getBaseUrl(oas) {
   // Extract the base URL from the OAS or use a default
   if (oas.servers && oas.servers.length > 0) {
     // Use the first server URL by default
-    return oas.servers[0].url;
+    return oas.servers[0].url;   // ✅ OpenAPI 3.0+
   }
   
   // For OpenAPI 2.0 (Swagger)
   if (oas.host && oas.basePath) {
     // Support for Swagger 2.0 format
     const scheme = (oas.schemes && oas.schemes[0]) || 'https';
-    return `${scheme}://${oas.host}${oas.basePath}`;
+    return `${scheme}://${oas.host}${oas.basePath}`;   // ✅ Swagger 2.0
   }
   
   // Fallback

@@ -1,0 +1,28 @@
+openapi: 3.0.0
+info:
+  title: GitHub API
+  version: 1.0.0
+paths:
+  /user/repos:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewRepo'
+      responses:
+        '201':
+          description: Created
+components:
+  schemas:
+    NewRepo:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        private:
+          type: boolean
