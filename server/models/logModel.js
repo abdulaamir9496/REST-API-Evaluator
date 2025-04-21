@@ -1,4 +1,3 @@
-//Creating a Model/ Schema
 const mongoose = require('mongoose');
 
 const logSchema = new mongoose.Schema({

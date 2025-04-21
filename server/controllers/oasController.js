@@ -7,32 +7,60 @@ const { configureAuth } = require('../utils/authHelper');
 const authConfigurations = {};
 
 async function testOAS(req, res) {
+  const { oasUrl } = req.body;
+  let summary = {};
+  let overallSuccessCount = 0;
+  let overallRequestCount = 0;
+
   try {
-    const { oasUrl, authConfig, authName } = req.body;
-    if (!oasUrl) {
-      return res.status(400).json({ message: 'oasUrl is required' });
-    }
-
-    let effectiveAuthConfig = authConfig;
-    if (authName && authConfigurations[authName]) {
-      effectiveAuthConfig = authConfigurations[authName];
-    }
-
-    const oasResponse = await fetchOAS(oasUrl);
-    const oas = oasResponse.data;
-    const endpoints = getEndpoints(oas);
-    const results = await testEndpoints(oas, endpoints, effectiveAuthConfig);
-
-    const summary = getSummary(results);
-    console.log('Test summary:', summary);
-    res.status(200).json({ summary, results });
-  } catch (error) {
-    console.error('Error processing OAS:', error.message);
-    res.status(400).json({ 
-      error: error.message,
-      response: error.response?.data,
-      status: error.response?.status
+    const spec = await loadSpecFile(oasUrl); // Load the OAS file
+    const endpoints = Object.keys(spec.paths).map(path => {
+      const methods = Object.keys(spec.paths[path]);
+      return { path, methods };
     });
+
+    for (const endpoint of endpoints) {
+      for (const method of endpoint.methods) {
+        const url = `https://petstore.swagger.io/v2/swagger.json${endpoint.path}`;
+        overallRequestCount++;
+
+        try {
+          const response = await axios({ method, url });
+          const success = response.status >= 200 && response.status < 300;
+
+          // Track success for this endpoint
+          if (!summary[endpoint.path]) {
+            summary[endpoint.path] = { successCount: 0, requestCount: 0 };
+          }
+          summary[endpoint.path].requestCount++;
+          if (success) {
+            summary[endpoint.path].successCount++;
+            overallSuccessCount++;
+          }
+        } catch (error) {
+          // Handle error (e.g., log it)
+          console.error(`Error calling ${method} ${url}:`, error.message);
+        }
+      }
+    }
+
+    // Calculate success frequency for each endpoint
+    for (const path in summary) {
+      const { successCount, requestCount } = summary[path];
+      summary[path].successFrequency = (successCount / requestCount) * 100;
+    }
+
+    // Calculate overall success frequency
+    const overallSuccessFrequency = (overallSuccessCount / overallRequestCount) * 100;
+
+    // Return results and summary
+    res.json({
+      results: summary,
+      overallSuccessFrequency,
+    });
+  } catch (error) {
+    console.error('Error processing OAS:', error);
+    res.status(500).json({ error: 'Failed to process OAS' });
   }
 }
 

@@ -17,6 +17,20 @@ function ResultCard({ data, onRetry }) {
             <span className="text-blue-600 dark:text-blue-400 uppercase">{method}</span>{" "}
             <span className="text-gray-900 dark:text-gray-200">{endpoint}</span>
           </p>
+
+          {/* 🆕 Status Label Badge */}
+          <span
+            className={`inline-block px-2 py-1 mt-1 mb-1 rounded text-xs font-semibold ${
+              success
+                ? "bg-green-100 text-green-700"
+                : error
+                ? "bg-red-100 text-red-700"
+                : "bg-yellow-100 text-yellow-700"
+            }`}
+          >
+            {success ? "Success" : error ? "Error" : "Failed"}
+          </span>
+
           <p className="text-sm text-gray-700 dark:text-gray-300">
             Status: {status || statusCode}
           </p>

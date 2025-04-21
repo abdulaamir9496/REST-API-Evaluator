@@ -1,38 +1,43 @@
 const fs = require('fs');
 const path = require('path');
 const SwaggerParser = require('@apidevtools/swagger-parser');
+const yaml = require('js-yaml');
 const { generateDummyData } = require('../utils/dummyDataGenerator');
+const { parseSpec } = require('./openapiParser'); // ✅ Corrected import
 
-async function testDummyDataFromSpec(specFilePath, specificEndpoint = null, specificMethod = null) {
+async function testDummyDataFromSpec(rawSpec, specContent, endpoint, method) {
+    const parsed = await parseSpec(rawSpec); // ✅ Corrected usage
     try {
-        const fullPath = path.resolve(__dirname, '../', specFilePath);
-        const api = await SwaggerParser.dereference(fullPath);
-        const results = [];
-
-        for (const [pathKey, pathItem] of Object.entries(api.paths)) {
-            for (const method of Object.keys(pathItem)) {
-                if (specificEndpoint && specificMethod) {
-                    if (pathKey !== specificEndpoint || method.toLowerCase() !== specificMethod.toLowerCase()) {
-                        continue;
-                    }
-                }
-
-                const operation = pathItem[method];
-                const requestBody = operation.requestBody || null;
-                const dummyData = generateDummyData(pathKey, requestBody);
-
-                results.push({
-                    path: pathKey,
-                    method: method.toUpperCase(),
-                    dummyRequestBody: dummyData,
-                });
-            }
+        let spec;
+        if (typeof specContent === 'string') {
+            spec = specContent.trim().startsWith('{')
+                ? JSON.parse(specContent)
+                : yaml.load(specContent);
+        } else {
+            spec = specContent;
         }
 
-        return results;
+        const parsedSpec = await SwaggerParser.dereference(spec);
+
+        const pathObj = parsedSpec.paths?.[endpoint];
+        const methodObj = pathObj?.[method.toLowerCase()];
+
+        if (!methodObj) {
+            return { error: `Method ${method} not found for ${endpoint}` };
+        }
+
+        const requestBody = methodObj.requestBody;
+        const schema = requestBody?.content?.['application/json']?.schema || null;
+
+        return {
+            endpoint,
+            method,
+            hasRequestBody: !!schema,
+            schema,
+        };
     } catch (err) {
-        console.error('❌ Error parsing or processing the spec:', err);
-        throw new Error('Failed to load or process OpenAPI/Swagger spec.');
+        console.error('Error parsing or testing spec:', err);
+        throw err;
     }
 }
 
